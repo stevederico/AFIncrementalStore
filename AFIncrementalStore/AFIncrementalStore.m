@@ -240,16 +240,12 @@ inline NSString * AFResourceIdentifierFromReferenceObject(id referenceObject) {
         NSString *resourceIdentifier = [self.HTTPClient resourceIdentifierForRepresentation:representation ofEntity:entity fromResponse:response];
         NSDictionary *attributes = [self.HTTPClient attributesForRepresentation:representation ofEntity:entity fromResponse:response];
         
+        NSLog(@"REP %@",representation);
+        
         __block NSManagedObject *managedObject = nil;
         [context performBlockAndWait:^{
             managedObject = [context existingObjectWithID:[self objectIDForEntity:entity withResourceIdentifier:resourceIdentifier] error:nil];
-            if ([representation objectForKey:@"deleted_at"]!=[NSNull null]) {
-                [context deleteObject:managedObject];
-                [context save:nil];
-                return;
-            }else{
-                [managedObject setValuesForKeysWithDictionary:attributes];
-            }
+              [managedObject setValuesForKeysWithDictionary:attributes];
         }];
         
         NSManagedObjectID *backingObjectID = [self objectIDForBackingObjectForEntity:entity withResourceIdentifier:resourceIdentifier];
@@ -300,8 +296,17 @@ inline NSString * AFResourceIdentifierFromReferenceObject(id referenceObject) {
             }];
         }
         
-        [mutableManagedObjects addObject:managedObject];
-        [mutableBackingObjects addObject:backingObject];
+        if ([representation objectForKey:@"deleted_at"]!=[NSNull null]) {
+            [context deleteObject:managedObject];
+            [context save:nil];
+            [backingContext deleteObject:backingObject];
+            [backingContext save:nil];
+        }else{
+            [mutableManagedObjects addObject:managedObject];
+            [mutableBackingObjects addObject:backingObject];
+        
+        }
+        
     }
     
     if (completionBlock) {
